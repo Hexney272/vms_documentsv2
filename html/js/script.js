@@ -24,6 +24,124 @@ let canPressAgain = true;
 
 let licensesNames = [];
 
+
+
+// ==========================================================
+// RealRPG ID Card - 3D flip view for id_card
+// ==========================================================
+function rrVal(data, keys, fallback = '-') {
+    if (!data) return fallback;
+    for (const key of keys) {
+        if (data[key] !== undefined && data[key] !== null && String(data[key]).trim() !== '') {
+            return String(data[key]).trim();
+        }
+    }
+    return fallback;
+}
+
+function rrUpper(value, fallback = '-') {
+    const text = String(value ?? '').trim();
+    return (text.length ? text : fallback).toLocaleUpperCase('hu-HU');
+}
+
+function rrPrettyDate(value, fallback = '-') {
+    const text = String(value ?? '').trim();
+    if (!text) return fallback;
+    return text;
+}
+
+function rrToday() {
+    const d = new Date();
+    return `${d.getFullYear()}. ${String(d.getMonth()+1).padStart(2, '0')}. ${String(d.getDate()).padStart(2, '0')}.`;
+}
+
+function rrExpiry() {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() + 5);
+    return `${d.getFullYear()}. ${String(d.getMonth()+1).padStart(2, '0')}. ${String(d.getDate()).padStart(2, '0')}.`;
+}
+
+function rrGender(value) {
+    const raw = String(value ?? '').trim().toLowerCase();
+    if (['m', 'male', 'ferfi', 'férfi', 'man'].includes(raw)) return 'FÉRFI';
+    if (['f', 'female', 'no', 'nő', 'woman'].includes(raw)) return 'NŐ';
+    return raw ? raw.toLocaleUpperCase('hu-HU') : 'NINCS MEGADVA';
+}
+
+function rrNormalizeMrz(value) {
+    return String(value ?? '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '<')
+        .replace(/<+/g, '<');
+}
+
+function rrPadMrz(value, len) {
+    value = rrNormalizeMrz(value);
+    if (value.length > len) return value.substring(0, len);
+    return value.padEnd(len, '<');
+}
+
+function rrSet(selector, value, fallback = '-') {
+    const text = String(value ?? '').trim();
+    $(selector).text(text.length ? text : fallback);
+}
+
+function rrSetHtmlLines(selector, value, fallback = '-') {
+    const text = String(value ?? '').trim() || fallback;
+    const safe = escapeHtml(text).replace(/\n/g, '<br>');
+    $(selector).html(safe);
+}
+
+function showRealRpgFlipIdCard(item) {
+    const data = item.data || {};
+    const firstName = rrVal(data, ['firstName', 'firstname', 'first_name', 'keresztnev'], '');
+    const lastName = rrVal(data, ['lastName', 'lastname', 'last_name', 'vezeteknev'], '');
+    const fullName = rrVal(data, ['fullName', 'name'], `${lastName} ${firstName}`.trim() || 'Kovács Benjamin');
+    const documentId = rrVal(data, ['document_id', 'documentId', 'serialNumber', 'serial', 'id'], 'RR-24-07-9821');
+    const birth = rrPrettyDate(rrVal(data, ['dateOfBirth', 'birthdate', 'dob', 'szuletesiDatum'], '1998. 07. 24.'));
+    const gender = rrGender(rrVal(data, ['gender', 'sex', 'nem'], 'férfi'));
+    const nationality = rrUpper(rrVal(data, ['nationality', 'allampolgarsag'], 'Magyar'));
+    const address = rrVal(data, ['address', 'lakcim', 'residence'], '1013 Budapest\nAttila út 45. 2/3.');
+    const issued = rrVal(data, ['issuedAt', 'issueDate', 'createdAt', 'created'], rrToday());
+    const expiry = rrVal(data, ['validUntil', 'expireDate', 'expires', 'expiry'], rrExpiry());
+    const signature = rrVal(data, ['signature'], fullName);
+    const ssn = rrVal(data, ['ssn', 'citizenid', 'identifier'], documentId);
+
+    rrSet('#rr-id-fullname', rrUpper(fullName));
+    rrSet('#rr-id-birth', birth);
+    rrSet('#rr-id-gender', gender);
+    rrSet('#rr-id-nationality', nationality);
+    rrSet('#rr-id-number', documentId);
+    rrSet('#rr-id-signature', signature);
+    rrSetHtmlLines('#rr-id-address', rrUpper(address));
+    rrSet('#rr-id-issued', issued);
+    rrSet('#rr-id-expiry', expiry);
+    rrSet('#rr-id-barcode-text', documentId);
+    rrSetHtmlLines('#rr-id-issuer', 'REALRPG ADMINISZTRÁCIÓ\n<span>IDENTITY MANAGEMENT DIVISION</span>');
+
+    const photo = String(item.photo || '').trim();
+    $('#rr-id-photo').attr('src', photo.length ? photo : './images/realrpg_photo_placeholder.svg');
+
+    const mrzName = rrPadMrz(`RREALRPG<<${lastName || fullName}<<${firstName}`, 44);
+    const mrzDocument = rrPadMrz(`${documentId}HUN${birth}${gender.substring(0, 1)}${expiry}${ssn}`, 44);
+    const mrzAddress = rrPadMrz(address, 44);
+    $('#rr-id-mrz-1').text(mrzName);
+    $('#rr-id-mrz-2').text(mrzDocument);
+    $('#rr-id-mrz-3').text(mrzAddress);
+
+    $('.documents').hide();
+    $('.badges').hide();
+    $('.help').hide();
+    $('.rr-id-flip-card').removeClass('is-flipped');
+    $('.rr-id-flip-shell').css('display', 'flex').hide().fadeIn(120);
+}
+
+$(document).on('click', '.rr-id-flip-card', function() {
+    $(this).toggleClass('is-flipped');
+});
+
 function escapeHtml(value) {
     return String(value ?? '')
         .replace(/&/g, '&amp;')
@@ -114,6 +232,10 @@ window.addEventListener('message', function(event) {
             console.error(error);
         });
     } else if (item.action == "showDocument") {
+        if (item.type == "document" && item.name == "id_card") {
+            showRealRpgFlipIdCard(item);
+            return;
+        }
         let loadedData = documentValues(item.name, item.data);
         
         let data = ''
@@ -188,6 +310,7 @@ window.addEventListener('message', function(event) {
     } else if (item.action == "closeDocument") {
         $('.documents').fadeOut(120);
         $('.badges').fadeOut(120);
+        $('.rr-id-flip-shell').fadeOut(120);
         $('.help').fadeOut(120);
     } else if (item.action == "openDocumentsMenu") {
         currentMenu = 'documents_menu';
