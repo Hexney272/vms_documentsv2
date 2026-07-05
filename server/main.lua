@@ -650,6 +650,37 @@ end
 exports('isAnyDocumentValid', isAnyDocumentValid)
 
 Citizen.CreateThread(function()
+    -- ════════════════════════════════════════════════════════════
+    -- FONTOS: Meg kell várnunk, hogy az ox_inventory resource TELJESEN elinduljon,
+    -- mielőtt a RegisterUsableItem exportot hívnánk. Ha a vms_documentsv2 hamarabb
+    -- indul (server.cfg sorrend), az export még nem létezik és a regisztráció csendben
+    -- meghiúsul!
+    -- ════════════════════════════════════════════════════════════
+    local oxResName = nil
+    local waitAttempts = 0
+    local maxWait = 60 -- max 30 másodperc (60 x 500ms)
+
+    while not oxResName and waitAttempts < maxWait do
+        if GetResourceState('ox_inventory') == 'started' then
+            oxResName = 'ox_inventory'
+        elseif GetResourceState('inventory') == 'started' then
+            oxResName = 'inventory'
+        end
+        if not oxResName then
+            Citizen.Wait(500)
+            waitAttempts = waitAttempts + 1
+        end
+    end
+
+    if not oxResName then
+        print('[^3vms_documentsv2^7] WARNING: ox_inventory/inventory resource not found after 30s. Falling back to ESX/QB RegisterUsableItem.')
+    else
+        print(('[^2vms_documentsv2^7] Inventory resource detected: %s'):format(oxResName))
+    end
+
+    -- Még egy extra wait hogy az inventory exportjai BIZTOSAN regisztrálva legyenek
+    Citizen.Wait(2000)
+
     for documentName, document in pairs(Config.Documents) do
         if document.itemName then
             local configuredDocumentName = documentName
@@ -737,6 +768,8 @@ Citizen.CreateThread(function()
                     )
                 end
             end)
+
+            print(('[^2vms_documentsv2^7] Registered usable item: %s (document: %s)'):format(configuredItemName, configuredDocumentName))
         end
     end
 end)

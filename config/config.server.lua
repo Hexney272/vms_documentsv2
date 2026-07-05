@@ -384,15 +384,38 @@ end
 
 
 -- Items:
-SV.registerUsableItem = function(name, cb)
+-- ════════════════════════════════════════════════════════════
+-- FONTOS: Az ox_inventory-kompatibilis inventory resource NEM FELTÉTLENÜL
+-- "ox_inventory" névvel fut! Pl. a RealRPG saját inventory-ja "inventory"
+-- mappanévvel fut, de UGYANÚGY biztosítja a RegisterUsableItem exportot.
+--
+-- Ezért MINDEN lehetséges nevet ellenőrzünk:
+--   1. 'ox_inventory'  (standard)
+--   2. 'inventory'     (RealRPG custom)
+-- ════════════════════════════════════════════════════════════
+local function getOxInventoryResourceName()
+    -- Elsőbbség: 'ox_inventory' (standard név)
     if GetResourceState('ox_inventory') == 'started' then
+        return 'ox_inventory'
+    end
+    -- Fallback: 'inventory' (RealRPG custom inventory, ox_bridge.lua-val)
+    if GetResourceState('inventory') == 'started' then
+        return 'inventory'
+    end
+    return nil
+end
+
+SV.registerUsableItem = function(name, cb)
+    local oxResName = getOxInventoryResourceName()
+
+    if oxResName then
         -- RealRPG / custom ox_inventory compatibility:
         -- Prefer the inventory's own usable-item bridge when it exists, because
         -- right-click -> Use goes through ox_inventory, not always ESX.UseItem.
         local registeredWithOx = false
 
         local ok, err = pcall(function()
-            exports['ox_inventory']:RegisterUsableItem(name, function(src, item)
+            exports[oxResName]:RegisterUsableItem(name, function(src, item)
                 item = item or {}
                 cb(src, item.name or name, {
                     metadata = item.metadata or item.info or {},
@@ -404,13 +427,14 @@ SV.registerUsableItem = function(name, cb)
         end)
 
         if not ok then
-            print(('[vms_documentsv2] ox_inventory RegisterUsableItem failed for %s: %s'):format(tostring(name), tostring(err)))
+            print(('[vms_documentsv2] %s RegisterUsableItem failed for %s: %s'):format(oxResName, tostring(name), tostring(err)))
         end
 
         if registeredWithOx then
             return
         end
 
+        -- Fallback ha az export hívás nem sikerült: ESX/QB RegisterUsableItem
         if Config.Core == "ESX" then
             Core.RegisterUsableItem(name, function(src, itemName, itemData)
                 cb(src, itemName or name, {metadata = itemData and itemData.metadata or {}})
@@ -449,11 +473,11 @@ SV.registerUsableItem = function(name, cb)
 end
 
 SV.addItem = function(src, xPlayer, name, count, metadata)
-    -- Elsőként az ox_inventory-kompatibilis AddItem exportot próbáljuk.
-    -- A mi inventory resource-unk 'ox_inventory' névvel fut (lásd fxmanifest),
-    -- ezért az exports['ox_inventory']:AddItem hívás a mi AddItem() függvényünket hívja.
-    if GetResourceState('ox_inventory') == 'started' then
-        exports['ox_inventory']:AddItem(src, name, count, metadata, nil)
+    -- Az ox_inventory-kompatibilis resource nevét keressük (lehet 'ox_inventory' VAGY 'inventory')
+    local oxResName = getOxInventoryResourceName()
+
+    if oxResName then
+        exports[oxResName]:AddItem(src, name, count, metadata, nil)
         
     elseif GetResourceState('qb-inventory') == 'started' then
         exports['qb-inventory']:AddItem(src, name, count, false, metadata)
