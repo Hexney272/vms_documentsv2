@@ -61,7 +61,11 @@ Config.MaxTimeWalkIn = 5000 -- 5 seconds
 Config.MaxTimeWalkOut = 5000 -- 5 seconds
 
 ---@field UseDocumentsOnlyInCityhall boolean: Will disable all Config.Documents items
-Config.UseDocumentsOnlyInCityhall = false
+-- FONTOS: Ha a realrpg_cityhall scriptet használod dokumentumkiadásra (Config.DocumentProvider),
+-- akkor ezt TRUE-ra kell állítani! Így a vms_documentsv2 NEM hoz létre saját NPC-ket/markereket,
+-- és CSAK a cityhall exportján keresztül ad ki dokumentumokat (nem a saját Config.DocumentsMenu-n).
+-- FALSE = a vms_documentsv2 saját NPC-ket/markereket használ (önálló mód, cityhall nélkül).
+Config.UseDocumentsOnlyInCityhall = true
 
 ---@field PhotosPrices number: The price for taking pictures with a photographer
 Config.PhotosPrices = 200

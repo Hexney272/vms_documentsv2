@@ -20,7 +20,9 @@ client_scripts {
 }
 
 server_scripts {
-    '@mysql-async/lib/MySQL.lua',
+    -- oxmysql kompatibilis (mysql-async API-t emulál, visszafelé kompatibilis)
+    -- Ha mysql-async is telepítve van a szerveren, azt is lehet használni helyette.
+    '@oxmysql/lib/MySQL.lua',
     'config/config.server.lua',
     'server/modules/ssn.lua',
     'server/lib.lua',

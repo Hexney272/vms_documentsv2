@@ -334,8 +334,17 @@ end
 
 SV.getMoney = function(xPlayer, moneyType)
     if Config.Core == "ESX" then
+        -- Az inventory a pénzt 'money' itemként kezeli.
+        -- Az xPlayer.getMoney() és xPlayer.getAccount('money'/'cash') az inventory
+        -- override-on keresztül a 'money' item count-ját adja vissza.
         if moneyType == 'cash' or moneyType == 'money' then
-            return xPlayer.getMoney and xPlayer.getMoney() or 0
+            -- Próbáljuk getMoney() shortcut-ot először (inventory override biztosítja)
+            if xPlayer.getMoney then
+                return xPlayer.getMoney() or 0
+            end
+            -- Fallback: getAccount-on keresztül
+            local account = xPlayer.getAccount and xPlayer.getAccount('money') or nil
+            return account and account.money or 0
         end
 
         local account = xPlayer.getAccount and xPlayer.getAccount(moneyType) or nil
@@ -356,8 +365,11 @@ SV.removeMoney = function(xPlayer, moneyType, count)
 
     if Config.Core == "ESX" then
         if moneyType == 'cash' or moneyType == 'money' then
+            -- Az inventory override-on keresztül a removeMoney a 'money' itemet csökkenti
             if xPlayer.removeMoney then
                 xPlayer.removeMoney(count)
+            elseif xPlayer.removeAccountMoney then
+                xPlayer.removeAccountMoney('money', count)
             end
             return
         end
@@ -437,6 +449,9 @@ SV.registerUsableItem = function(name, cb)
 end
 
 SV.addItem = function(src, xPlayer, name, count, metadata)
+    -- Elsőként az ox_inventory-kompatibilis AddItem exportot próbáljuk.
+    -- A mi inventory resource-unk 'ox_inventory' névvel fut (lásd fxmanifest),
+    -- ezért az exports['ox_inventory']:AddItem hívás a mi AddItem() függvényünket hívja.
     if GetResourceState('ox_inventory') == 'started' then
         exports['ox_inventory']:AddItem(src, name, count, metadata, nil)
         
