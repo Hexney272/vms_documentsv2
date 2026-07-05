@@ -275,6 +275,60 @@ window.addEventListener('message', function(event) {
         });
         
         if (item.type == "document") {
+            // ══════════════════════════════════════════════════════════════
+            // REALRPG EGYEDI ID KÁRTYA: ha az item 'id_card', a saját
+            // .rr-id-flip-shell NUI-t használjuk (3D flip, egyedi design)
+            // ══════════════════════════════════════════════════════════════
+            if (item.name === 'id_card') {
+                // Mezők kitöltése a metadata-ból
+                let fullName = ((data['firstName'] || '') + ' ' + (data['lastName'] || '')).trim().toUpperCase();
+                let birth = data['dateOfBirth'] || '';
+                let gender = data['gender'] || data['sex'] || 'N/A';
+                let nationality = (data['nationality'] || 'N/A').toUpperCase();
+                let serial = data['document_id'] || '';
+                let signature = (data['firstName'] || '') + ' ' + (data['lastName'] || '');
+
+                $('#rr-id-fullname').text(fullName || 'ISMERETLEN');
+                $('#rr-id-birth').text(birth || 'N/A');
+                $('#rr-id-gender').text(gender.toUpperCase());
+                $('#rr-id-nationality').text(nationality);
+                $('#rr-id-number').text(serial || 'N/A');
+                $('#rr-id-signature').text(signature || '');
+                $('#rr-id-barcode-text').text(serial || '');
+
+                // MRZ sorok generálása
+                let mrzName = ('RREALRPG<<' + (data['lastName'] || 'UNKNOWN') + '<<' + (data['firstName'] || 'UNKNOWN')).toUpperCase().replace(/\s/g, '<');
+                while (mrzName.length < 44) mrzName += '<';
+                mrzName = mrzName.substring(0, 44);
+                $('#rr-id-mrz-1').text(mrzName);
+
+                let mrzSerial = (serial || 'RR00000000').replace(/-/g, '');
+                let mrz2 = mrzSerial + 'HUN' + (birth || '000000').replace(/\D/g, '').substring(0,6) + 'M<<<<<<4';
+                while (mrz2.length < 44) mrz2 += '<';
+                mrz2 = mrz2.substring(0, 44);
+                $('#rr-id-mrz-2').text(mrz2);
+
+                // Fotó beállítása ha van
+                if (item.photo) {
+                    $('#rr-id-photo').attr('src', item.photo);
+                } else {
+                    $('#rr-id-photo').attr('src', './images/realrpg_photo_placeholder.svg');
+                }
+
+                // Flip reset és megjelenítés
+                $('.rr-id-flip-card').removeClass('is-flipped');
+                $('.rr-id-flip-shell').css('display', 'flex').hide().fadeIn(200);
+
+                // Help hint
+                $('.help').css({ top: '90%', width: '100%' });
+                $('.help').html('Kattints a kártyára a megfordításhoz • ESC bezárás');
+                $('.help').fadeIn(120);
+                return;
+            }
+
+            // ══════════════════════════════════════════════════════════════
+            // Eredeti VMS dokumentum megjelenítés (driving_license, stb.)
+            // ══════════════════════════════════════════════════════════════
             $(".documents > #header > .document_name").html(document_name)
             $(".documents > #data").html(data)
             $(".documents > #signature > p").html(signature)
@@ -382,6 +436,11 @@ $(".close").click(() => {
     currentMenu = null;
     currentSubMenu = null;
 })
+
+// ═══ RealRPG ID Card: kattintásra flip ═══
+$(document).on('click', '.rr-id-flip-card', function() {
+    $(this).toggleClass('is-flipped');
+});
 
 function convertPngToWebp(pngBase64, quality = 1.0) {
     return new Promise((resolve, reject) => {

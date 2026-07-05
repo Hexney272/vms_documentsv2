@@ -10,7 +10,26 @@ local function getESXVariable(xPlayer, key)
     end
 
     if xPlayer.get then
-        return xPlayer.get(key)
+        local val = xPlayer.get(key)
+        if val ~= nil then return val end
+    end
+
+    -- Fallback: getName() a teljes név lekéréséhez
+    if (key == 'firstName' or key == 'firstname' or key == 'first_name') and xPlayer.getName then
+        local fullName = xPlayer.getName()
+        if fullName and fullName ~= '' then
+            local parts = {}
+            for part in fullName:gmatch('%S+') do parts[#parts+1] = part end
+            if #parts >= 1 then return parts[1] end
+        end
+    end
+    if (key == 'lastName' or key == 'lastname' or key == 'last_name') and xPlayer.getName then
+        local fullName = xPlayer.getName()
+        if fullName and fullName ~= '' then
+            local parts = {}
+            for part in fullName:gmatch('%S+') do parts[#parts+1] = part end
+            if #parts >= 2 then return parts[#parts] end
+        end
     end
 
     return nil
